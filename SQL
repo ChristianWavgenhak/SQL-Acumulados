@@ -1,0 +1,404 @@
+select
+
+P_R
+
+,sum (case
+     when tipo = 'ANTERIOR'
+     then valor end )anteior
+
+
+,sum (case
+     when tipo = 'DIA'
+     then valor else 0  end )DIA
+,sum (case
+     when tipo = 'SEMANA'
+     then valor else 0  end )SEMANA
+ ,sum (case
+     when tipo = '30 DIAS'
+     then valor else 0  end ) MES_ATUAL
+,sum (case
+     when tipo = 'MAIS 60 DIAS'
+     then valor else 0  end )MAIS_60_DIAS
+
+
+
+
+FROM( select
+      'ANTERIOR' as tipo,
+       FMS.EMPRESA_MOVTO as EMPRESA,
+       case
+           when FMS.FINANCEIRO_PAGAR_RECEBER ='R'
+           then 'A Receber' else 'A Pagar'   end as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       , sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+from
+    FINANCEIRO_DT FDT
+    left join FINANCEIRO_MS FMS on FMS.TRANSACAO = FDT.TRANSACAO
+    left join VENDEDORES V on V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR and V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    left join CLIENTES_FORNECEDORES C on C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR and C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+
+where
+    fdt.financeiro_baixado = 'N'  and
+
+      fdt.financeiro_agrupamento_status <> 2
+     and fdt.financeiro_data_vencimento  <  current_date
+     and fms.empresa_movto = '0001'
+     and fms.financeiro_situacao=0
+  group by 1,2,3,4,5
+
+union
+     select
+      'ANTERIOR' as tipo,
+       FMS.EMPRESA_MOVTO as EMPRESA,
+      'DIFERENCA' as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       , sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+from
+    FINANCEIRO_DT FDT
+    left join FINANCEIRO_MS FMS on FMS.TRANSACAO = FDT.TRANSACAO
+    left join VENDEDORES V on V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR and V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    left join CLIENTES_FORNECEDORES C on C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR and C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+
+where
+    fdt.financeiro_baixado = 'N'  and
+
+      fdt.financeiro_agrupamento_status <> 2
+     -- and fms.financeiro_efetivo = 'S'
+     and fdt.financeiro_data_vencimento  <  current_date
+     and fms.empresa_movto = '0001'
+     and fms.financeiro_situacao=0
+  group by 1,2,3,4
+
+
+UNION
+select
+      'DIA'  as tipo,
+       FMS.EMPRESA_MOVTO as EMPRESA,
+       case
+           when FMS.FINANCEIRO_PAGAR_RECEBER ='R'
+           then 'A Receber' else 'A Pagar'   end as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       ,IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA) valor
+
+from
+    FINANCEIRO_DT FDT
+    inner join FINANCEIRO_MS FMS on FMS.TRANSACAO = FDT.TRANSACAO
+    left join VENDEDORES V on V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR and V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    left join CLIENTES_FORNECEDORES C on C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR and C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+
+where
+     fdt.financeiro_baixado = 'N'
+     and fdt.financeiro_agrupamento_status <> 2
+     and fdt.financeiro_data_vencimento = current_date
+     and fms.empresa_movto = '0001'
+     and fms.financeiro_situacao=0
+UNION
+ select
+      'DIA' as tipo,
+       FMS.EMPRESA_MOVTO as EMPRESA,
+      'DIFERENCA' as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       , sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+from
+    FINANCEIRO_DT FDT
+    left join FINANCEIRO_MS FMS on FMS.TRANSACAO = FDT.TRANSACAO
+    left join VENDEDORES V on V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR and V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    left join CLIENTES_FORNECEDORES C on C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR and C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+
+where
+    fdt.financeiro_baixado = 'N'  and
+
+      fdt.financeiro_agrupamento_status <> 2
+     -- and fms.financeiro_efetivo = 'S'
+     and fdt.financeiro_data_vencimento  =  current_date
+     and fms.empresa_movto = '0001'
+     and fms.financeiro_situacao=0
+  group by 1,2,3,4
+UNION
+SELECT
+    'SEMANA' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+  case
+           when FMS.FINANCEIRO_PAGAR_RECEBER ='R'
+           then 'A Receber' else 'A Pagar'   end as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       ,IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+    AND EXTRACT(WEEK FROM fdt.financeiro_data_vencimento) = EXTRACT(week FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+    and fdt.financeiro_data_vencimento <> current_date
+    and fms.financeiro_situacao=0
+    AND fms.empresa_movto = '0001'
+
+UNION
+   SELECT
+    'SEMANA' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+    'DIFERENCA' as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       ,SUM(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+    AND EXTRACT(WEEK FROM fdt.financeiro_data_vencimento) = EXTRACT(week FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+    and fdt.financeiro_data_vencimento <> current_date
+    and fms.financeiro_situacao=0
+    AND fms.empresa_movto = '0001'
+ group by 1,2,3,4
+ UNION
+
+
+ SELECT
+    '30 DIAS' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+          case
+           when FMS.FINANCEIRO_PAGAR_RECEBER ='R'
+           then 'A Receber' else 'A Pagar'   end  as P_R
+     ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       ,sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+
+    AND EXTRACT(MONTH FROM fdt.financeiro_data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+    AND EXTRACT(WEEK FROM fdt.financeiro_data_vencimento) <> EXTRACT(week FROM CURRENT_DATE)
+    and fms.financeiro_situacao=0
+      AND fms.empresa_movto = '0001'
+
+ group by 1,2,3,4
+
+union
+     SELECT
+    '30 DIAS' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+      'DIFERENCA' as P_R
+       ,fdt.financeiro_data_vencimento as data
+       , null as conta
+       ,sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+    AND EXTRACT(MONTH FROM fdt.financeiro_data_vencimento) = EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+    AND EXTRACT(WEEK FROM fdt.financeiro_data_vencimento) <> EXTRACT(week FROM CURRENT_DATE)
+    and fms.financeiro_situacao=0
+    AND fms.empresa_movto = '0001'
+
+ group by 1,2,3,4
+UNION
+
+SELECT
+    'MAIS 60 DIAS' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+   case
+           when FMS.FINANCEIRO_PAGAR_RECEBER ='R'
+           then 'A Receber' else 'A Pagar'   end as P_R
+       ,fdt.financeiro_data_vencimento as data
+       ,null as conta
+       ,IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+    AND EXTRACT(MONTH FROM fdt.financeiro_data_vencimento) > EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+
+    and fms.financeiro_situacao=0
+    AND fms.empresa_movto = '0001'
+UNION
+ SELECT
+    'MAIS 60 DIAS' AS tipo,
+    FMS.EMPRESA_MOVTO AS EMPRESA,
+   'DIFERENCA'  as P_R
+       ,fdt.financeiro_data_vencimento as data
+       ,null as conta
+       ,sum(IIF(FMS.FINANCEIRO_PAGAR_RECEBER ='P', FDT.FINANCEIRO_VALOR_PARCELA * -1, FDT.FINANCEIRO_VALOR_PARCELA)) valor
+FROM
+    FINANCEIRO_DT FDT
+    INNER JOIN FINANCEIRO_MS FMS ON FMS.TRANSACAO = FDT.TRANSACAO
+    LEFT JOIN VENDEDORES V ON V.EMPRESA_CODIGO = FMS.EMPRESA_VENDEDOR AND V.VENDEDOR_CODIGO = FMS.VENDEDOR_CODIGO
+    LEFT JOIN CLIENTES_FORNECEDORES C ON C.EMPRESA_CODIGO = FMS.EMPRESA_CLIFOR AND C.CLIFOR_CODIGO = FMS.CLIFOR_CODIGO
+WHERE
+    fdt.financeiro_baixado = 'N'
+    AND fdt.financeiro_agrupamento_status <> 2
+    AND EXTRACT(MONTH FROM fdt.financeiro_data_vencimento) > EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM fdt.financeiro_data_vencimento) = EXTRACT(year FROM CURRENT_DATE)
+
+    and fms.financeiro_situacao=0
+    AND fms.empresa_movto = '0001'
+ group by 1,2,3,4
+
+
+
+UNION
+--SALDO DAS CONTAS
+Select
+     'ANTERIOR' as tipo,
+     A.Empresa_Movto empresa,
+     'SALDO CONTAS' AS P_R ,
+     A.movimento_data_emissao as data,
+     a.conta_codigo ||' - '|| cnt.conta_descricao conta,
+     sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 as valor
+
+ From MOVIMENTO_CONTAS A
+ Left Join TIPO_RECEBIMENTO B on (A.Tiporec_codigo = B.Tiporec_Codigo)
+  Left Join EMPRESAS P on A.Empresa_Movto = P.Empresa_Codigo
+   LEFT  JOIN CONTAS CNT ON a.CONTA_CODIGO = CNT.CONTA_CODIGO
+Where
+     A.Empresa_Movto = '0001'
+      and A.movimento_data_emissao < current_date
+     and a.movimento_data_pagamento is not null
+     and cnt.conta_inativa = 'N'
+
+group by 1,2,3,4,5
+
+having    sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 <> 0
+
+union
+Select
+     'DIA' as tipo,
+     A.Empresa_Movto empresa,
+     'SALDO CONTAS' AS P_R ,
+     A.movimento_data_emissao as data,
+     a.conta_codigo ||' - '|| cnt.conta_descricao conta,
+     sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 as valor
+
+ From MOVIMENTO_CONTAS A
+ Left Join TIPO_RECEBIMENTO B on (A.Tiporec_codigo = B.Tiporec_Codigo)
+  Left Join EMPRESAS P on A.Empresa_Movto = P.Empresa_Codigo
+   LEFT  JOIN CONTAS CNT ON a.CONTA_CODIGO = CNT.CONTA_CODIGO
+Where
+     A.Empresa_Movto = '0001'
+      and A.movimento_data_emissao = current_date
+     and a.movimento_data_pagamento is not null
+     and cnt.conta_inativa = 'N'
+
+group by 1,2,3,4,5
+
+having    sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 <> 0
+UNION
+
+     Select
+     'SEMANA' as tipo,
+     A.Empresa_Movto empresa,
+     'SALDO CONTAS' AS P_R ,
+     A.movimento_data_emissao as data,
+     a.conta_codigo ||' - '|| cnt.conta_descricao conta,
+     sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 as valor
+
+ From MOVIMENTO_CONTAS A
+ Left Join TIPO_RECEBIMENTO B on (A.Tiporec_codigo = B.Tiporec_Codigo)
+  Left Join EMPRESAS P on A.Empresa_Movto = P.Empresa_Codigo
+   LEFT  JOIN CONTAS CNT ON a.CONTA_CODIGO = CNT.CONTA_CODIGO
+Where
+     A.Empresa_Movto = '0001'
+     AND EXTRACT(WEEK FROM A.movimento_data_emissao) = EXTRACT(week FROM CURRENT_DATE)
+    AND EXTRACT(year FROM A.movimento_data_emissao) = EXTRACT(year FROM CURRENT_DATE)
+    and A.movimento_data_emissao <> current_date
+    and a.movimento_data_pagamento is not null
+     and cnt.conta_inativa = 'N'
+
+group by 1,2,3,4,5
+
+having    sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 <> 0
+
+UNION
+
+     Select
+     '30 DIAS'as tipo,
+     A.Empresa_Movto empresa,
+     'SALDO CONTAS' AS P_R ,
+     A.movimento_data_emissao as data,
+     a.conta_codigo ||' - '|| cnt.conta_descricao conta,
+     sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 as valor
+
+ From MOVIMENTO_CONTAS A
+ Left Join TIPO_RECEBIMENTO B on (A.Tiporec_codigo = B.Tiporec_Codigo)
+  Left Join EMPRESAS P on A.Empresa_Movto = P.Empresa_Codigo
+   LEFT  JOIN CONTAS CNT ON a.CONTA_CODIGO = CNT.CONTA_CODIGO
+Where
+     A.Empresa_Movto = '0001'
+     AND EXTRACT(MONTH FROM A.movimento_data_emissao) = EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM A.movimento_data_emissao) = EXTRACT(year FROM CURRENT_DATE)
+    AND EXTRACT(WEEK FROM A.movimento_data_emissao) <> EXTRACT(week FROM CURRENT_DATE)
+    and a.movimento_data_pagamento is not null
+     and cnt.conta_inativa = 'N'
+
+group by 1,2,3,4,5
+
+having    sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 <> 0
+
+union
+
+Select
+     'MAIS 60 DIAS' as tipo,
+     A.Empresa_Movto empresa,
+     'SALDO CONTAS' AS P_R ,
+     A.movimento_data_emissao as data,
+     a.conta_codigo ||' - '|| cnt.conta_descricao conta,
+     sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 as valor
+
+ From MOVIMENTO_CONTAS A
+ Left Join TIPO_RECEBIMENTO B on (A.Tiporec_codigo = B.Tiporec_Codigo)
+  Left Join EMPRESAS P on A.Empresa_Movto = P.Empresa_Codigo
+   LEFT  JOIN CONTAS CNT ON a.CONTA_CODIGO = CNT.CONTA_CODIGO
+Where
+     A.Empresa_Movto = '0001'
+     AND EXTRACT(MONTH FROM A.movimento_data_emissao) > EXTRACT(MONTH FROM CURRENT_DATE)
+    AND EXTRACT(year FROM A.movimento_data_emissao) = EXTRACT(year FROM CURRENT_DATE)
+
+    and a.movimento_data_pagamento is not null
+     and cnt.conta_inativa = 'N'
+
+group by 1,2,3,4,5
+
+having    sum(iif ( b.tiporec_entrada_saida = 'S' , A.Movimento_Valor  ,0)-
+     iif(  b.tiporec_entrada_saida = 'E' , A.Movimento_Valor ,0)) * - 1 <> 0
+
+      )
+  group by 1
+  order by 1
